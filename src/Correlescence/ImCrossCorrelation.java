@@ -161,7 +161,7 @@ public class ImCrossCorrelation {
 	    
 	    ImageProcessor normIP;
 	    float dVal;
-	    normIP = calcNormCorrelationCoeff(ip1,ip2);
+	    normIP = calcNormCorrelationCoeff(padzeros(ip1),padzeros(ip2));
 		for(i=0;i<originalWidth;i++)
 			for(j=0;j<originalWidth;j++)
 			{
