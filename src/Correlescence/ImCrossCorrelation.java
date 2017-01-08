@@ -103,30 +103,33 @@ public class ImCrossCorrelation {
 	/** Function calculates slow (direct) cross correlation between to images
 	 * by shifting them and calculating result
 	 * **/
-	public ImageProcessor calcDirectCorrelationImage(ImageProcessor ip1, ImageProcessor ip2)
+	public ImageProcessor calcDirectCorrelationImage(ImageProcessor ipp1, ImageProcessor ipp2)
 	{
 		
-		//to have the same size as FFT cross correlation for comparison
-		int originalWidth = ip1.getWidth();
-	    int originalHeight = ip1.getHeight();
-		int maxN = Math.max(originalWidth, originalHeight);
-		int nCorrW = 2;
+		ImageProcessor ip1,ip2;
 
-	    while(nCorrW<maxN) nCorrW *= 2;
-	    
+		//to have the same size as FFT cross correlation for comparison
+		ip1=padzeros(ipp1);
+		ip2=padzeros(ipp2);
+		
+		//int originalWidth = ip1.getWidth();
+	    //int originalHeight = ip1.getHeight();
+		int nCorrW = ip1.getWidth();
+		
+		
 	    double dCC;//,dCC1,dCC2;
 	    int i,j,m,n;
 	    double val1,val2;
-	    double mean1,mean2;
+	    //double mean1,mean2;
 	    
-	    mean1 = ImageStatistics.getStatistics(ip1,Measurements.MEAN,null).mean;
-	    mean2 = ImageStatistics.getStatistics(ip2,Measurements.MEAN,null).mean;
+	    //mean1 = ImageStatistics.getStatistics(ip1,Measurements.MEAN,null).mean;
+	    //mean2 = ImageStatistics.getStatistics(ip2,Measurements.MEAN,null).mean;
 	    
 	    FloatProcessor crosscorr= new FloatProcessor (nCorrW,nCorrW);
 	    
 	    int dx,dy;
-	    int dMaxx=(int)Math.round(originalWidth*0.5-1);
-	    int dMaxy=(int)Math.round(originalHeight*0.5-1);
+	    int dMaxx=(int)Math.round(nCorrW*0.5-1);
+	    int dMaxy=(int)Math.round(nCorrW*0.5-1);
 	    
 	    //correlation shifts
 	    for (dx=-dMaxx;dx<=dMaxx;dx++)
@@ -136,15 +139,15 @@ public class ImCrossCorrelation {
 	    		dCC=0;
 				//dCC1=0;
 				//dCC2=0;
-				for(i=0;i<originalWidth;i++)
-					for(j=0;j<originalHeight;j++)
+				for(i=0;i<nCorrW;i++)
+					for(j=0;j<nCorrW;j++)
 					{
 						m=i+dx;
 						n=j+dy;
-						if(m>-1 &&m<originalWidth&& n>-1 &&n<originalHeight)
+						if(m>-1 &&m<nCorrW&& n>-1 &&n<nCorrW)
 						{
-							val1=ip1.getf(m,n)-mean1;
-							val2=ip2.getf(i,j)-mean2;
+							val1=ip1.getf(m,n);//-mean1;
+							val2=ip2.getf(i,j);//-mean2;
 							dCC+=val1*val2;
 							//dCC1+=val1*val1;
 							//dCC2+=val2*val2;
@@ -161,9 +164,9 @@ public class ImCrossCorrelation {
 	    
 	    ImageProcessor normIP;
 	    float dVal;
-	    normIP = calcNormCorrelationCoeff(padzeros(ip1),padzeros(ip2));
-		for(i=0;i<originalWidth;i++)
-			for(j=0;j<originalWidth;j++)
+	    normIP = calcNormCorrelationCoeff(ip1,ip2);
+		for(i=0;i<nCorrW;i++)
+			for(j=0;j<nCorrW;j++)
 			{
 				dVal=crosscorr.getf(i,j)/normIP.getf(i,j);
 				crosscorr.setf(i,j,dVal);
