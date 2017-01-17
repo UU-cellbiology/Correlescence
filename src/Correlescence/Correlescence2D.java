@@ -39,6 +39,7 @@ public void run(String arg) {
     String sImTitle;
     ImageStack crosscorrstack;
     int [][] xydrifttable;
+    boolean bAutoCorr =false;
 	
 	ImCrossCorrelation x2D = new ImCrossCorrelation();
 	
@@ -60,11 +61,11 @@ public void run(String arg) {
 	
 	if(nStackSize ==1)
 	{
-	    IJ.error("Stack is required");
-	    return;		
+	    IJ.log("Only one image in stack, limiting choice to autocorrelation");
+	    	bAutoCorr=true;
 	}
 	
-	if(!x2Dialog())
+	if(!x2Dialog(bAutoCorr))
 		return;
 	
 	originalWidth = imp.getWidth();
@@ -100,9 +101,11 @@ public void run(String arg) {
 	    //for (i=0;i<nStackSize-1;i++)
 	    {
 	    	imp.setSliceWithoutUpdate(i);
-			ip1 = imp.getProcessor().convertToFloat();
-			imp.setSliceWithoutUpdate(j);
-			ip2 = imp.getProcessor().convertToFloat();
+
+	    	ip1 = getFloatversion(imp);
+	    	imp.setSliceWithoutUpdate(j);
+	    	ip2 = getFloatversion(imp);
+
 			//subtract average intensity value
 			ip1.subtract(ImageStatistics.getStatistics(ip1,Measurements.MEAN,null).mean);
 			ip2.subtract(ImageStatistics.getStatistics(ip2,Measurements.MEAN,null).mean);
@@ -133,18 +136,18 @@ public void run(String arg) {
     }
     //choice:
     //current image in stack and all others
-    else
+    if(sChoice.equals("current image in stack and all others"))
     {
     	sImTitle =sImTitle +"vs_current_image";
     	i=imp.getCurrentSlice();
-    	ip1 = imp.getProcessor().convertToFloat();
+    	ip1=getFloatversion(imp);
     	//subtract average intensity value
 		ip1.subtract(ImageStatistics.getStatistics(ip1,Measurements.MEAN,null).mean);
     	j=1;
     	while(j<=nStackSize)
     	{
 			imp.setSliceWithoutUpdate(j);
-			ip2 = imp.getProcessor().convertToFloat();
+			ip2 = getFloatversion(imp);
 			ip2.subtract(ImageStatistics.getStatistics(ip2,Measurements.MEAN,null).mean);
 			if(nCalcMethod==0)
 				{ip = x2D.calcDirectCorrelationImage(ip1,ip2);}
@@ -168,8 +171,42 @@ public void run(String arg) {
     	}
     
     }
+    //autocorrelation
+    if(sChoice.equals("autocorrelation"))
+    {	
+    	sImTitle =sImTitle +"autocorrelation_";
     
-    
+		//i=imp.getCurrentSlice();
+		//ip1=getFloatversion(imp);
+		//subtract average intensity value
+		//ip1.subtract(ImageStatistics.getStatistics(ip1,Measurements.MEAN,null).mean);
+		j=1;
+		while(j<=nStackSize)
+		{
+			imp.setSliceWithoutUpdate(j);
+			ip2 = getFloatversion(imp);
+			ip2.subtract(ImageStatistics.getStatistics(ip2,Measurements.MEAN,null).mean);
+			if(nCalcMethod==0)
+				{ip = x2D.calcDirectCorrelationImage(ip2,ip2);}
+			else
+				{ip = x2D.calcFFTCorrelationImage(ip2, ip2);}
+		
+			sTitle = String.format("corr_%d_x_%d", j,j);
+			xymax = getmaxpositions(ip);
+			if (bDrift)
+			{
+				xydrifttable[j-1][0]=(int) (xymax[0]-nCorrW*0.5);
+				xydrifttable[j-1][1]=(int) (xymax[1]-nCorrW*0.5);
+			}
+			ptable.incrementCounter();
+			ptable.addLabel(sTitle);
+			ptable.addValue("X",xymax[0]-nCorrW*0.5);	
+			ptable.addValue("Y",xymax[1]-nCorrW*0.5);
+			
+			crosscorrstack.addSlice(null, ip);
+    		j++;
+	    }
+    }
     
     
     
@@ -195,16 +232,20 @@ public void run(String arg) {
 /** 
  * Dialog displaying options of 2D correlation
  * **/
-public boolean x2Dialog() 
+public boolean x2Dialog(boolean bAutoOn) 
 {
 	GenericDialog x2DDial = new GenericDialog("2D cross-correlation options");
 	String [] items = new String [] {
-			"consecutive images","current image in stack and all others"};
+			"consecutive images","current image in stack and all others","autocorrelation"};
+	String [] itemsAuto = new String [] {"autocorrelation"};
 	String [] itemsC = new String [] {
 			"Direct cross-correlation (slow)","FFT cross-correlation (fast)"};
 
-
-	x2DDial.addRadioButtonGroup("Calculate 2D cross correlation between:", items, 2, 1, Prefs.get("Correlescence.2Dcorr", "consecutive images"));
+	if(bAutoOn)
+	{	x2DDial.addRadioButtonGroup("Calculate 2D cross correlation between:", itemsAuto, 1, 1, "autocorrelation");}
+	else
+	{	x2DDial.addRadioButtonGroup("Calculate 2D cross correlation between:", items, 3, 1, Prefs.get("Correlescence.2Dcorr", "consecutive images"));}
+	
 	x2DDial.addNumericField("for consecutive, distance between images", Prefs.get("Correlescence.2Ddist", 1), 0, 4, " ");
 	x2DDial.addCheckbox("Correct drift (max of corr)?", Prefs.get("Correlescence.2Ddrift", false));
 	x2DDial.addChoice("Calculation method:", itemsC, Prefs.get("Correlescence.2Dcorrmethod", "FFT cross-correlation (fast)"));
@@ -215,7 +256,10 @@ public boolean x2Dialog()
         return false;
 
 	sChoice=x2DDial.getNextRadioButton();
-	Prefs.set("Correlescence.2Dcorr", sChoice);
+	if(!bAutoOn)
+	{
+		Prefs.set("Correlescence.2Dcorr", sChoice);
+	}
 	nImNumber = (int)x2DDial.getNextNumber();
 	Prefs.set("Correlescence.2Ddist", nImNumber);
 	bDrift = x2DDial.getNextBoolean();
@@ -260,6 +304,19 @@ int [] getmaxpositions(ImageProcessor ipp)
 		}
 	}
 	return results;		
+}
+
+/** Gets float copy of current imageprocessor */	
+ImageProcessor getFloatversion(ImagePlus impx)
+
+{
+	if(imp.getType()!=ImagePlus.GRAY32)
+	{
+		return impx.getProcessor().convertToFloat();
+	}else
+	{
+		return  impx.getProcessor().duplicate();
+	}
 }
 
 }
