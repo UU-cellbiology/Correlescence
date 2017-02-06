@@ -1,11 +1,11 @@
 <project name="Correlescence" default="" basedir=".">
     <description>
-        KymoResliceWide_ build file
+    	Correlescence pluging build file
     </description>
   <property name="src" location="src" />
   <property name="build" location="bin" />
   <property name="dist"  location="dist" />
-  <property name="version" value="v_0.0.2" /> 
+  <property name="version" value="v_0.0.3" /> 
   <property name="pluginsDir"  location="$basedir/../../IJ/plugins/" />
   <property name="user.name" value="Yevhen Katrukha" />
 	<tstamp>

@@ -14,6 +14,7 @@ import ij.process.ImageStatistics;
 public class Correlescence2D implements PlugIn {
 
 	ImagePlus imp;
+	
 	/** delay between frames **/
 	int nImNumber;
 	/** way to calc correlation: consecutive or one fixed**/
@@ -40,6 +41,7 @@ public void run(String arg) {
     ImageStack crosscorrstack;
     int [][] xydrifttable;
     boolean bAutoCorr =false;
+    int nCurrentSlice;
 	
 	ImCrossCorrelation x2D = new ImCrossCorrelation();
 	
@@ -58,6 +60,7 @@ public void run(String arg) {
 	}
 	
 	nStackSize = imp.getStackSize();
+	nCurrentSlice = imp.getCurrentSlice();
 	
 	if(nStackSize ==1)
 	{
@@ -96,6 +99,9 @@ public void run(String arg) {
 	    	IJ.error("Frame delay larger than image stack size");
 	    	return;
 	    }
+	    
+	    
+	    
 	    while(j<=nStackSize)
 	    	
 	    //for (i=0;i<nStackSize-1;i++)
@@ -118,15 +124,18 @@ public void run(String arg) {
 			
 			sTitle = String.format("corr_%d_x_%d", i,j);
 			xymax = getmaxpositions(ip);
+			ptable.incrementCounter();
+			ptable.addLabel(sTitle);
+			ptable.addValue("Xmax_(px)",xymax[0]-nCorrW*0.5);	
+			ptable.addValue("Ymax_(px)",xymax[1]-nCorrW*0.5);
 			if (bDrift)
 			{
 				xydrifttable[i][0]=(int) (xymax[0]-nCorrW*0.5 + xydrifttable[i-1][0]);
 				xydrifttable[i][1]=(int) (xymax[1]-nCorrW*0.5 + xydrifttable[i-1][1]);
+				//reserve
+				ptable.addValue("Xdrift_(px)",0);	
+				ptable.addValue("Ydrift_(px)",0);
 			}
-			ptable.incrementCounter();
-			ptable.addLabel(sTitle);
-			ptable.addValue("X",xymax[0]-nCorrW*0.5);	
-			ptable.addValue("Y",xymax[1]-nCorrW*0.5);
 			
 			crosscorrstack.addSlice(null, ip);
 		    i++; j++;
@@ -156,15 +165,19 @@ public void run(String arg) {
 		
 			sTitle = String.format("corr_%d_x_%d", i,j);
 			xymax = getmaxpositions(ip);
+			ptable.incrementCounter();
+			ptable.addLabel(sTitle);
+			ptable.addValue("Xmax_(px)",xymax[0]-nCorrW*0.5);	
+			ptable.addValue("Ymax_(px)",xymax[1]-nCorrW*0.5);
 			if (bDrift)
 			{
 				xydrifttable[j-1][0]=(int) (xymax[0]-nCorrW*0.5);
 				xydrifttable[j-1][1]=(int) (xymax[1]-nCorrW*0.5);
+				//reserve
+				ptable.addValue("Xdrift_(px)",0);	
+				ptable.addValue("Ydrift_(px)",0);
 			}
-			ptable.incrementCounter();
-			ptable.addLabel(sTitle);
-			ptable.addValue("X",xymax[0]-nCorrW*0.5);	
-			ptable.addValue("Y",xymax[1]-nCorrW*0.5);
+
 			
 			crosscorrstack.addSlice(null, ip);
     		j++;
@@ -193,15 +206,11 @@ public void run(String arg) {
 		
 			sTitle = String.format("corr_%d_x_%d", j,j);
 			xymax = getmaxpositions(ip);
-			if (bDrift)
-			{
-				xydrifttable[j-1][0]=(int) (xymax[0]-nCorrW*0.5);
-				xydrifttable[j-1][1]=(int) (xymax[1]-nCorrW*0.5);
-			}
+
 			ptable.incrementCounter();
 			ptable.addLabel(sTitle);
-			ptable.addValue("X",xymax[0]-nCorrW*0.5);	
-			ptable.addValue("Y",xymax[1]-nCorrW*0.5);
+			ptable.addValue("Xmax_(px)",xymax[0]-nCorrW*0.5);	
+			ptable.addValue("Ymax_(px)",xymax[1]-nCorrW*0.5);
 			
 			crosscorrstack.addSlice(null, ip);
     		j++;
@@ -214,18 +223,39 @@ public void run(String arg) {
     new ImagePlus(sImTitle, crosscorrstack).show();
     IJ.resetMinAndMax();
     //IJ.run("Enhance Contrast", "saturated=0.35");
-    ptable.show("Results");
+
     
     
     if (bDrift)
 	{
+    	 if(sChoice.equals("consecutive images"))
+    	 {
+    		 //correct drift table with respect to the current slide
+    		 double xbase,ybase;
+    		 xbase = xydrifttable[nCurrentSlice-1][0];
+    		 ybase = xydrifttable[nCurrentSlice-1][1];
+    		 for (i=0;i<nStackSize;i++)
+    		 {
+    			 xydrifttable[i][0] -= xbase;
+    			 xydrifttable[i][1] -= ybase;
+    		 }
+    	 }
+    	//translating images
 	    for (i=0;i<nStackSize;i++)
 	    {
 	    	imp.setSliceWithoutUpdate(i+1);
 			imp.getProcessor().translate(xydrifttable[i][0], xydrifttable[i][1]);
+			ptable.setValue("Xdrift_(px)", i, xydrifttable[i][0]);
+			ptable.setValue("Ydrift_(px)", i, xydrifttable[i][1]);
+			ptable.setValue("Frame", i,i+1);
+			
 	    }
-	    imp.show();
+	    //imp.show();
 	}
+    imp.setSlice(nCurrentSlice);
+    //show results
+    ptable.show("Results");
+
 }//end of run()
 
 
