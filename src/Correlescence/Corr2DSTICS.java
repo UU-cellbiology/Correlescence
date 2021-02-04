@@ -5,10 +5,10 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.Prefs;
 import ij.gui.GenericDialog;
+import ij.measure.Calibration;
 import ij.measure.Measurements;
 import ij.plugin.PlugIn;
 import ij.plugin.ZProjector;
-import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
 
@@ -22,10 +22,13 @@ public class Corr2DSTICS implements PlugIn {
 	ImCrossCorrelation x2D;
 	/** object performing averaging**/
 	ZProjector Zproj = new ZProjector();
-	/** closest degree of 2 to image size (from top), correlation image size **/
-	int nCorrW;
+
 	/** maximum delay in frames **/
 	int nMaxUserDelay;
+	/** image width in px**/
+	int origW;
+	/** image height in px**/
+	int origH;
 @Override
 public void run(String arg) {
 	
@@ -36,6 +39,8 @@ public void run(String arg) {
 	ImageStack stSTICS;
 	String sTitle;
 	int nHalfStack;
+	ImagePlus finalImp;
+
 	
 	imp = IJ.getImage();		
 	if (imp==null)
@@ -59,9 +64,10 @@ public void run(String arg) {
 	if(!xDialog2STICS())
 		return;
 	
-	int maxN = Math.max(imp.getWidth(), imp.getHeight());
-	nCorrW = 2;
-    while(nCorrW<maxN) nCorrW *= 2;
+	
+	origW = imp.getWidth();
+	origH =imp.getHeight();
+
 	
     x2D = new ImCrossCorrelation();
     nHalfStack=(int)Math.floor((double)nStackSize*0.5);
@@ -78,7 +84,8 @@ public void run(String arg) {
 		else
 			nMaxDelay=nMaxUserDelay;
 	}
-	stSTICS = new ImageStack(nCorrW,nCorrW);
+	//stSTICS = new ImageStack(nCorrW,nCorrW);
+	stSTICS = new ImageStack(origW,origH);
 	
 	for (i=0;i<=nMaxDelay;i++)
 	{
@@ -88,7 +95,13 @@ public void run(String arg) {
 	}
 	sTitle=imp.getTitle();
 	IJ.showStatus("2D STICS calculation done.");
-	new ImagePlus(sTitle+"_2D_STICS", stSTICS).show();
+	finalImp=new ImagePlus(sTitle+"_2D_STICS", stSTICS);
+	Calibration cal = finalImp.getCalibration();
+    cal.xOrigin=Math.round(origW*0.5);
+    cal.yOrigin=Math.round(origH*0.5);
+    
+    finalImp.setCalibration(cal);
+    finalImp.show();
 	
 }//end of run()
 
@@ -102,7 +115,7 @@ ImageProcessor average2Dcorr(int nDelay, int nStackSize)
 	int i,j;
 	
 	i=1; j=i+nDelay;
-	crosscorrstack = new ImageStack(nCorrW,nCorrW);
+	crosscorrstack = new ImageStack(origW,origH);
 	
 	while(j<=nStackSize)
     {

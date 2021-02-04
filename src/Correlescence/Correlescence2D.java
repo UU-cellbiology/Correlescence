@@ -5,6 +5,7 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.Prefs;
 import ij.gui.GenericDialog;
+import ij.measure.Calibration;
 import ij.measure.Measurements;
 import ij.measure.ResultsTable;
 import ij.plugin.PlugIn;
@@ -21,8 +22,16 @@ public class Correlescence2D implements PlugIn {
 	String sChoice;
 	/** whether correct for the drift or not **/
 	boolean bDrift;
+	/** limit displacement for x and y**/
+	boolean bDriftlimit;
+	/** max displacement for x**/
+	int nDriftlimitX;
+	/** max displacement for y**/
+	int nDriftlimitY;
 	/** method to calculate xcorr: slow or fast **/
 	int nCalcMethod;
+	
+	
 	ResultsTable ptable;
 
 @Override
@@ -30,9 +39,10 @@ public void run(String arg) {
 	
 	int nStackSize;
 	ImageProcessor ip, ip1,ip2;
-	int originalWidth ;
-    int originalHeight ;
-	int maxN;
+	int originalWidth;
+    int originalHeight;
+
+    int maxN;
 	int nCorrW;
     int i,j;
     int [] xymax;
@@ -42,11 +52,12 @@ public void run(String arg) {
     int [][] xydrifttable;
     boolean bAutoCorr =false;
     int nCurrentSlice;
+	ImagePlus impCC;
 	
+    
 	ImCrossCorrelation x2D = new ImCrossCorrelation();
 	
-	
-	
+
 	imp = IJ.getImage();		
 	if (imp==null)
 	{
@@ -73,16 +84,20 @@ public void run(String arg) {
 	
 	originalWidth = imp.getWidth();
     originalHeight = imp.getHeight();
+	//halfW=(int)Math.round(originalWidth*0.5);
+	//halfH=(int)Math.round(originalHeight*0.5);
 	maxN = Math.max(originalWidth, originalHeight);
 	nCorrW = 2;
     while(nCorrW<maxN) nCorrW *= 2;
     
-    crosscorrstack= new ImageStack(nCorrW,nCorrW);
+    //crosscorrstack= new ImageStack(nCorrW,nCorrW);
+    crosscorrstack= new ImageStack(originalWidth,originalHeight);
     ptable = ResultsTable.getResultsTable();
     
     xydrifttable = new int [nStackSize][2];
     sImTitle = "xcorr_";
     
+    IJ.showStatus("Calculating correlation...");
     if(sChoice.equals("consecutive images"))
     {
     	sImTitle =sImTitle +sChoice;
@@ -101,10 +116,8 @@ public void run(String arg) {
 	    }
 	    
 	    
-	    
+	  
 	    while(j<=nStackSize)
-	    	
-	    //for (i=0;i<nStackSize-1;i++)
 	    {
 	    	imp.setSliceWithoutUpdate(i);
 
@@ -123,25 +136,27 @@ public void run(String arg) {
 				{ip = x2D.calcFFTCorrelationImage(ip1, ip2);}
 			
 			sTitle = String.format("corr_%d_x_%d", i,j);
-			xymax = getmaxpositions(ip);
+			//xymax = getmaxpositions(ip);
+			xymax = getmaxpositionscenterlimit(ip);
 			ptable.incrementCounter();
 			ptable.addLabel(sTitle);
-			ptable.addValue("Xmax_(px)",xymax[0]-nCorrW*0.5);	
-			ptable.addValue("Ymax_(px)",xymax[1]-nCorrW*0.5);
+			ptable.addValue("Xmax_(px)",xymax[0]);	
+			ptable.addValue("Ymax_(px)",xymax[1]);
 			if (bDrift)
 			{
-				xydrifttable[i][0]=(int) (xymax[0]-nCorrW*0.5 + xydrifttable[i-1][0]);
-				xydrifttable[i][1]=(int) (xymax[1]-nCorrW*0.5 + xydrifttable[i-1][1]);
+				xydrifttable[i][0]=(int) (xymax[0] + xydrifttable[i-1][0]);
+				xydrifttable[i][1]=(int) (xymax[1] + xydrifttable[i-1][1]);
 				//reserve
 				ptable.addValue("Xdrift_(px)",0);	
 				ptable.addValue("Ydrift_(px)",0);
 			}
 			
 			crosscorrstack.addSlice(null, ip);
-		    i++; j++;
-		    
-	
+			IJ.showProgress(j, nStackSize);
+			i++; j++;
+		   
 	    }
+	    IJ.showProgress(j, nStackSize);
     }
     //choice:
     //current image in stack and all others
@@ -164,15 +179,16 @@ public void run(String arg) {
 				{ip = x2D.calcFFTCorrelationImage(ip1, ip2);}
 		
 			sTitle = String.format("corr_%d_x_%d", i,j);
-			xymax = getmaxpositions(ip);
+			xymax = getmaxpositionscenterlimit(ip);
+			//xymax = getmaxpositions(ip);
 			ptable.incrementCounter();
 			ptable.addLabel(sTitle);
-			ptable.addValue("Xmax_(px)",xymax[0]-nCorrW*0.5);	
-			ptable.addValue("Ymax_(px)",xymax[1]-nCorrW*0.5);
+			ptable.addValue("Xmax_(px)",xymax[0]);	
+			ptable.addValue("Ymax_(px)",xymax[1]);
 			if (bDrift)
 			{
-				xydrifttable[j-1][0]=(int) (xymax[0]-nCorrW*0.5);
-				xydrifttable[j-1][1]=(int) (xymax[1]-nCorrW*0.5);
+				xydrifttable[j-1][0]=(int) (xymax[0]);
+				xydrifttable[j-1][1]=(int) (xymax[1]);
 				//reserve
 				ptable.addValue("Xdrift_(px)",0);	
 				ptable.addValue("Ydrift_(px)",0);
@@ -180,9 +196,11 @@ public void run(String arg) {
 
 			
 			crosscorrstack.addSlice(null, ip);
-    		j++;
+			IJ.showProgress(j, nStackSize);
+			j++;
+    		
     	}
-    
+    	IJ.showProgress(j, nStackSize);
     }
     //autocorrelation
     if(sChoice.equals("autocorrelation"))
@@ -209,18 +227,23 @@ public void run(String arg) {
 
 			ptable.incrementCounter();
 			ptable.addLabel(sTitle);
-			ptable.addValue("Xmax_(px)",xymax[0]-nCorrW*0.5);	
-			ptable.addValue("Ymax_(px)",xymax[1]-nCorrW*0.5);
+			ptable.addValue("Xmax_(px)",xymax[0]);	
+			ptable.addValue("Ymax_(px)",xymax[1]);
 			
 			crosscorrstack.addSlice(null, ip);
+			IJ.showProgress(j, nStackSize);
     		j++;
 	    }
+		IJ.showProgress(j, nStackSize);
     }
-    
-    
-    
-    
-    new ImagePlus(sImTitle, crosscorrstack).show();
+
+    IJ.showStatus("Calculating correlation...done.");
+    impCC= new ImagePlus(sImTitle, crosscorrstack);
+    Calibration cal = impCC.getCalibration();
+    cal.xOrigin=Math.round(originalWidth*0.5);
+    cal.yOrigin=Math.round(originalHeight*0.5);
+    impCC.setCalibration(cal);
+    impCC.show();
     IJ.resetMinAndMax();
     //IJ.run("Enhance Contrast", "saturated=0.35");
 
@@ -277,8 +300,12 @@ public boolean x2Dialog(boolean bAutoOn)
 	{	x2DDial.addRadioButtonGroup("Calculate 2D cross correlation between:", items, 3, 1, Prefs.get("Correlescence.2Dcorr", "consecutive images"));}
 	
 	x2DDial.addNumericField("for consecutive, distance between images", Prefs.get("Correlescence.2Ddist", 1), 0, 4, " ");
-	x2DDial.addCheckbox("Correct drift (max of corr)?", Prefs.get("Correlescence.2Ddrift", false));
 	x2DDial.addChoice("Calculation method:", itemsC, Prefs.get("Correlescence.2Dcorrmethod", "FFT cross-correlation (fast)"));
+
+	x2DDial.addCheckbox("Correct drift (max of corr)?", Prefs.get("Correlescence.2Ddrift", false));
+	x2DDial.addCheckbox("Limit max displacement?", Prefs.get("Correlescence.2Ddriftlimit", false));
+	x2DDial.addNumericField("Max displacement X", Prefs.get("Correlescence.2DdriftXmax", 0), 0, 4, "px");
+	x2DDial.addNumericField("Max displacement Y", Prefs.get("Correlescence.2DdriftYmax", 0), 0, 4, "px");
 	
 	x2DDial.setResizable(false);
 	x2DDial.showDialog();
@@ -292,10 +319,18 @@ public boolean x2Dialog(boolean bAutoOn)
 	}
 	nImNumber = (int)x2DDial.getNextNumber();
 	Prefs.set("Correlescence.2Ddist", nImNumber);
-	bDrift = x2DDial.getNextBoolean();
-	Prefs.set("Correlescence.2Ddrift", bDrift);
 	nCalcMethod = x2DDial.getNextChoiceIndex();
 	Prefs.set("Correlescence.2Dcorrmethod", itemsC[nCalcMethod]);
+	bDrift = x2DDial.getNextBoolean();
+	Prefs.set("Correlescence.2Ddrift", bDrift);
+	bDriftlimit = x2DDial.getNextBoolean();
+	Prefs.set("Correlescence.2Ddriftlimit", bDriftlimit);	
+	
+	nDriftlimitX = (int)x2DDial.getNextNumber();
+	Prefs.set("Correlescence.2DdriftXmax", nDriftlimitX);
+	nDriftlimitY = (int)x2DDial.getNextNumber();
+	Prefs.set("Correlescence.2DdriftYmax", nDriftlimitY);
+	
 	//drift correction can be used only at frame step=1
 	if(bDrift)
 	{
@@ -333,8 +368,59 @@ int [] getmaxpositions(ImageProcessor ipp)
 			}
 		}
 	}
+	
 	return results;		
 }
+
+/** Gets x and y coordinates of maximum intensity pixel on image (with respect to the center
+ * and return them, taking into account the min and max  */	
+int [] getmaxpositionscenterlimit(ImageProcessor ipp_in)
+{
+	int [] results = new int [2];
+	results[0]=0;
+	results[1]=0;
+	int nWidth = ipp_in.getWidth();
+	int nHeight = ipp_in.getHeight();
+	int halfW=(int)Math.round(nWidth*0.5);
+	int halfH=(int)Math.round(nHeight*0.5);
+	
+	ImageProcessor ipp;
+	
+	double s;
+	double smax=Double.MIN_VALUE;
+	
+	if(bDriftlimit)
+	{
+		ipp=ipp_in.duplicate();
+		ipp.setRoi(halfW-nDriftlimitX, halfH-nDriftlimitY, 2*nDriftlimitX, 2*nDriftlimitY);
+		ipp=ipp.crop();
+		halfW=nDriftlimitX;
+		halfH=nDriftlimitY;
+	}
+	else
+	{
+		ipp=ipp_in;
+	}
+	
+	for (int i=0;i<ipp.getWidth();i++)
+	{
+		for (int j=0;j<ipp.getHeight();j++)
+		{
+			s=ipp.get(i, j);	
+			if (s>smax)
+			{
+				smax=s;
+				results[0]=i;
+				results[1]=j;
+			}
+		}
+	}
+	results[0]=results[0]-halfW;
+	results[1]=results[1]-halfH;
+	return results;		
+}
+
+
 
 /** Gets float copy of current imageprocessor */	
 ImageProcessor getFloatversion(ImagePlus impx)

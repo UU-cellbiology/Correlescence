@@ -1,10 +1,10 @@
 package Correlescence;
 
 
-import ij.ImagePlus;
+import java.awt.Rectangle;
+
 import ij.ImageStack;
 import ij.Undo;
-import ij.measure.Measurements;
 import ij.process.FHT;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
@@ -20,16 +20,23 @@ public class ImCrossCorrelation {
 		int i,j;
 		float dRefRe,dRefIm, dWarpRe, dWarpIm, dVal;
 		ImageProcessor paddedip1, paddedip2, normIP; 
+		//ip1 and ip2 assumed to be same size
+		int origW =ip1.getWidth();
+		int origH =ip1.getHeight();
+		int nPaddedS;
 		
 		int imheightFFT, imwidthFFT;
 	    FHT fht1,fht2;
 	   
 	    paddedip1=padzeros(ip1);
 	    paddedip2=padzeros(ip2);
+	    //since now width and height is the same, just one measurement
+	    nPaddedS=paddedip1.getWidth();
 	    
 	    fht1 = new FHT(paddedip1);
 	    fht2 = new FHT(paddedip2);
-	     
+	    fht1.setShowProgress(false);
+	    fht2.setShowProgress(false);
 	    
 	    fht1.transform();
 	    fht2.transform();
@@ -95,8 +102,10 @@ public class ImCrossCorrelation {
 			}
 		//new ImagePlus("xcorr", crossCorrIm.duplicate()).show();
 		
-	
-	    return crossCorrIm;
+		//crop to original size
+		crossCorrIm.setRoi(new Rectangle((int)((nPaddedS-origW)*0.5),(int)((nPaddedS-origH)*0.5),origW,origH));
+		
+	    return crossCorrIm.crop();
 		
 	}
 
@@ -112,8 +121,8 @@ public class ImCrossCorrelation {
 		ip1=padzeros(ipp1);
 		ip2=padzeros(ipp2);
 		
-		//int originalWidth = ip1.getWidth();
-	    //int originalHeight = ip1.getHeight();
+		int origW = ipp1.getWidth();
+	    int origH = ipp1.getHeight();
 		int nCorrW = ip1.getWidth();
 		
 		
@@ -160,8 +169,8 @@ public class ImCrossCorrelation {
 				//else
 					//crosscorr.setf(dx+(int)(nCorrW*0.5),dy+(int)(nCorrW*0.5),0);
 	    	}
-	    //normalization
 	    
+	    //normalization	    
 	    ImageProcessor normIP;
 	    float dVal;
 	    normIP = calcNormCorrelationCoeff(ip1,ip2);
@@ -171,12 +180,15 @@ public class ImCrossCorrelation {
 				dVal=crosscorr.getf(i,j)/normIP.getf(i,j);
 				crosscorr.setf(i,j,dVal);
 			}
-	    
-	    return crosscorr;
+		
+		//crop to original size
+		crosscorr.setRoi(new Rectangle((int)((nCorrW-origW)*0.5),(int)((nCorrW-origH)*0.5),origW,origH));
+			    
+	    return crosscorr.crop();
 	}
 	
 	
-	/** Function calculates normalization coefficient (denumenator) 
+	/** Function calculates normalization coefficient (denominator) 
 	 *  for correlation
 	 * **/
 	public ImageProcessor calcNormCorrelationCoeff(ImageProcessor ip1, ImageProcessor ip2)
@@ -261,6 +273,29 @@ public class ImCrossCorrelation {
 		
 	}
 
+	/** Function calculates shift in X and Y between images using
+	 * cross correlation calculated through FFT transform
+	 * */
+	public double [] calcShiftFFTCorrelationDouble(ImageProcessor ip1, ImageProcessor ip2)
+	{
+		int [] xyshift;
+		int i;
+		int nSize;
+		double [] xyshiftd;
+		
+		ImageProcessor crossCorrIm = calcFFTCorrelationImage(ip1, ip2);
+		xyshift = getmaxpositions(crossCorrIm);
+		xyshiftd= new double[xyshift.length];
+		for(i=0;i<xyshift.length;i++)
+		{
+			xyshiftd[i]=(double)xyshift[i];
+		}
+		
+		return xyshiftd;
+		
+	}
+
+	
 	/** 
 	 * some parts from ij.plugin.FFT code
 	 *  
@@ -290,7 +325,7 @@ public class ImCrossCorrelation {
         return ip2;
     }
     
-    ImageProcessor padzeros(ImageProcessor ip) 
+    public static ImageProcessor padzeros(ImageProcessor ip) 
     {
         int originalWidth = ip.getWidth();
         int originalHeight = ip.getHeight();
@@ -321,8 +356,9 @@ public class ImCrossCorrelation {
 	    3 4
 	</pre>
 */
-    void swapQuadrants(ImageStack stack) {
+    public static void swapQuadrants(ImageStack stack) {
         FHT fht = new FHT(new FloatProcessor(1, 1));
+        fht.setShowProgress(false);
         for (int i=1; i<=stack.getSize(); i++)
             fht.swapQuadrants(stack.getProcessor(i));
     }
@@ -330,9 +366,10 @@ public class ImCrossCorrelation {
     /** Complex to Complex Inverse Fourier Transform
     *   @author Joachim Wesner
     */
-    void c2c2DFFT(float[] rein, float[] imin, int maxN, float[] reout, float[] imout) 
+    public static void c2c2DFFT(float[] rein, float[] imin, int maxN, float[] reout, float[] imout) 
     {
             FHT fht = new FHT(new FloatProcessor(maxN,maxN));
+            fht.setShowProgress(false);
             float[] fhtpixels = (float[])fht.getPixels();
             // Real part of inverse transform
             for (int iy = 0; iy < maxN; iy++)
@@ -352,7 +389,7 @@ public class ImCrossCorrelation {
     /** Build FHT input for equivalent inverse FFT
     *   @author Joachim Wesner
     */
-    void cplxFHT(int row, int maxN, float[] re, float[] im, boolean reim, float[] fht) 
+    public static void cplxFHT(int row, int maxN, float[] re, float[] im, boolean reim, float[] fht) 
     {
             int base = row*maxN;
             int offs = ((maxN-row)%maxN) * maxN;
@@ -369,7 +406,7 @@ public class ImCrossCorrelation {
             }
       }
     
-    ImageStack doComplexInverseTransform(ImageStack stack, int width, int height ) 
+    public static ImageStack doComplexInverseTransform(ImageStack stack, int width, int height ) 
     {
    
         int maxN = stack.getWidth();
@@ -391,7 +428,7 @@ public class ImCrossCorrelation {
         return stack2;
     }
     
-    ImageStack unpad(ImageStack stack, int width, int height) 
+    public static ImageStack unpad(ImageStack stack, int width, int height) 
     {
       
  
