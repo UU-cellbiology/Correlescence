@@ -48,6 +48,7 @@ public void run(String arg) {
     int [] xymax;
     String sTitle;
     String sImTitle;
+    String sInTitle;
     ImageStack crosscorrstack;
     int [][] xydrifttable;
     boolean bAutoCorr =false;
@@ -78,6 +79,7 @@ public void run(String arg) {
 	    IJ.log("Only one image in stack, limiting choice to autocorrelation");
 	    	bAutoCorr=true;
 	}
+	sInTitle = imp.getTitle();
 	
 	if(!x2Dialog(bAutoCorr))
 		return;
@@ -101,7 +103,7 @@ public void run(String arg) {
     if(sChoice.equals("consecutive images"))
     {
     	sImTitle =sImTitle +sChoice;
-    	sImTitle = sImTitle+"_delay_"+Integer.toString(nImNumber);
+    	sImTitle = sImTitle+"_delay_"+Integer.toString(nImNumber)+"_"+sInTitle;
     	if (bDrift)
     	{
     		xydrifttable[0][0]=0;
@@ -162,8 +164,9 @@ public void run(String arg) {
     //current image in stack and all others
     if(sChoice.equals("current image in stack and all others"))
     {
-    	sImTitle =sImTitle +"vs_current_image";
+    	
     	i=imp.getCurrentSlice();
+    	sImTitle =sImTitle +"vs_frame"+Integer.toString(i)+"_"+sInTitle;
     	ip1=getFloatversion(imp);
     	//subtract average intensity value
 		ip1.subtract(ImageStatistics.getStatistics(ip1,Measurements.MEAN,null).mean);
@@ -205,7 +208,7 @@ public void run(String arg) {
     //autocorrelation
     if(sChoice.equals("autocorrelation"))
     {	
-    	sImTitle =sImTitle +"autocorrelation_";
+    	sImTitle =sImTitle +"autocorrelation_"+sInTitle;
     
 		//i=imp.getCurrentSlice();
 		//ip1=getFloatversion(imp);
@@ -223,7 +226,8 @@ public void run(String arg) {
 				{ip = x2D.calcFFTCorrelationImage(ip2, ip2);}
 		
 			sTitle = String.format("corr_%d_x_%d", j,j);
-			xymax = getmaxpositions(ip);
+			xymax = getmaxpositionscenterlimit(ip);
+			//xymax = getmaxpositions(ip);
 
 			ptable.incrementCounter();
 			ptable.addLabel(sTitle);
@@ -299,7 +303,7 @@ public boolean x2Dialog(boolean bAutoOn)
 	else
 	{	x2DDial.addRadioButtonGroup("Calculate 2D cross correlation between:", items, 3, 1, Prefs.get("Correlescence.2Dcorr", "consecutive images"));}
 	
-	x2DDial.addNumericField("for consecutive, distance between images", Prefs.get("Correlescence.2Ddist", 1), 0, 4, " ");
+	x2DDial.addNumericField("for consecutive, interval between images", Prefs.get("Correlescence.2Ddist", 1), 0, 4, "frames (or slices) ");
 	x2DDial.addChoice("Calculation method:", itemsC, Prefs.get("Correlescence.2Dcorrmethod", "FFT cross-correlation (fast)"));
 
 	x2DDial.addCheckbox("Correct drift (max of corr)?", Prefs.get("Correlescence.2Ddrift", false));

@@ -96,6 +96,7 @@ public void run(String arg) {
 	sTitle=imp.getTitle();
 	IJ.showStatus("2D STICS calculation done.");
 	finalImp=new ImagePlus(sTitle+"_2D_STICS", stSTICS);
+	//calibration
 	Calibration cal = finalImp.getCalibration();
     cal.xOrigin=Math.round(origW*0.5);
     cal.yOrigin=Math.round(origH*0.5);

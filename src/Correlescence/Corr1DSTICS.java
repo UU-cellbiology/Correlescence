@@ -4,6 +4,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.Prefs;
 import ij.gui.GenericDialog;
+import ij.measure.Calibration;
 import ij.plugin.PlugIn;
 
 public class Corr1DSTICS implements PlugIn {
@@ -30,6 +31,7 @@ public class Corr1DSTICS implements PlugIn {
 		int nStackSize;
 		int imHeight;
 		String sTitle;
+		ImagePlus finalImp;
 	
 		imp = IJ.getImage();		
 		imHeight= imp.getHeight();
@@ -72,7 +74,11 @@ public class Corr1DSTICS implements PlugIn {
 		else
 			sTitle=sTitle+"_1Dxt_fft";
 		
-		new ImagePlus(sTitle,x1D.xCorrSpaceTime(imp.getProcessor(), nMaxUserDelay1D,nCalcMethod,nNormMethod)).show();
+		finalImp = new ImagePlus(sTitle,x1D.xCorrSpaceTime(imp.getProcessor(), nMaxUserDelay1D,nCalcMethod,nNormMethod));
+		Calibration cal = finalImp.getCalibration();
+	    cal.xOrigin=Math.round(imp.getWidth()*0.5)-1;
+	    cal.yOrigin=0;
+		finalImp.show();
 			//x1D.xCorrSpaceTimeFFT();
 	}
 	
