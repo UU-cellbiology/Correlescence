@@ -1,4 +1,5 @@
 # Correlescence
+[![DOI](https://zenodo.org/badge/78357244.svg)](https://zenodo.org/badge/latestdoi/78357244)
 
 <img src="http://katpyxa.info/software/Correlescence_logo.png" align="right" style="padding:100px"/> This is open-source [ImageJ](https://imagej.nih.gov/ij/index.html) plugin for different spatial/temporal correlation analysis of images (stacks and hyperstacks).
 It includes 2D cross-correlation for stacks and 1D/2D STICS analysis. 
