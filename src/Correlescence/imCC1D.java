@@ -7,6 +7,10 @@ import ij.process.ImageProcessor;
 
 public class imCC1D {
 	
+	
+	/** dominant frequency(period) and corresponding phase **/
+	float [] fFreqPhase = null;	
+
 	/** Function calculates cross-correlation 
 	 *  on kymograph image, assuming image y axis is time and x-axis is x (displacement).
 	 *  
@@ -76,6 +80,7 @@ public class imCC1D {
 		return resultip;
 		
 	}
+
 	/** Function returns directly calculated cross-correlation (non-normalized!) 
 	 * of row1 and row2 float arrays of the same size**/
 	public float[] calcCCRowsDirect(float [] row1, float [] row2)
@@ -151,6 +156,40 @@ public class imCC1D {
 		return fCCproper; 
 		
 	}
+	
+	/** function calculates non-normalized auto-correlation for the float arrays row1,
+	 * requires its size is equal and length is power of 2 **/
+	public float[] calcACRowsFFT(float [] row1, boolean bFreqPhase)
+	{
+
+		float [] fCCproper;
+		float [] fCrossCorr;
+		fft1d fftcalc = new fft1d();
+		int i,n;
+		
+
+		fCrossCorr = fftcalc.autocorrel(row1, bFreqPhase);
+		if(bFreqPhase)
+			{
+				fFreqPhase = fftcalc.fFreqPhase;
+			}
+			
+		//reorder output, removing wraparound
+		n=fCrossCorr.length;
+
+		fCCproper=new float [n];
+		int nhalf=n/2;
+
+		for(i=0;i<(nhalf);i++)
+		{
+			fCCproper[nhalf-i-1]=fCrossCorr[i];
+			fCCproper[nhalf+i]=fCrossCorr[n-i-1];
+			
+		}
+		
+		return fCCproper; 
+		
+	}
 	/** function pads float array with zeros to the closest power of 2
 	 * ? add windowing ?
 	 * **/
@@ -189,7 +228,7 @@ public class imCC1D {
 	}
 	/** function subtracts average value from provided array
 	 * **/
-	public void subtractAverage(float [] data)
+	public static void subtractAverage(float [] data)
 	{
 		int n=data.length;
 		float fAver=0;

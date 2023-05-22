@@ -5,6 +5,9 @@ package Correlescence;
  * **/
 public class fft1d {
 	
+	float [] fFreqPhase = null;
+
+	
 	//empty constructor
 	public fft1d()
 	{
@@ -16,7 +19,7 @@ public class fft1d {
 	 *  @param data supposed to be 0,2,4,... real part, 1,3,5... imaginary part
 	 *  @param isign specifies whether it is forward or inverse transform
 	 * **/
-	public void four1(float[] data, int isign)
+	public static void four1(float[] data, int isign)
 	{
 		int nn, mmax, m, j, istep, i;
 		float wtemp, wr, wpr, wpi, wi, theta, tempr, tempi, tempf;
@@ -92,7 +95,7 @@ public class fft1d {
 		//int size = 2;
 		//while (size<n) size *= 2; // find power of 2 where the data fit
 		float[] data = new float[n]; // leave the original data untouched, work on a copy
-		System.arraycopy(datain, 0, data, 0, n); // pad to 2^n-size
+		System.arraycopy(datain, 0, data, 0, n); // pad to 2^n-size with zeros
 		//n=size;
 		
 		theta=(float) (Math.PI/(double)(n>>1));
@@ -174,6 +177,58 @@ public class fft1d {
 		ans=realft(ans,-1);
 		
 		return ans;
+	
+	}
+	
+	/**
+	 * function calculating auto-correlation between two signals
+	 * results are returned in wraparound order, i.e. correlations
+	 * at increasingly negative lags are in ans[n-1] on down to ans[n/2],
+	 * while correlations at increasingly positive lags are 
+	 * in ans[0] (zero lag) on up to ans[n/2-1].
+	 * if (nCalcFreqPhase == true),calculates dominant frequency (with max amplitude)
+	 * and phase and stores it in the corresponding member variables
+	 * **/
+	public float[] autocorrel(float[] data1, boolean nCalcFreqPhase)
+	{
+		float [] ans;
+
+		int n=data1.length;
+		float [] invPrep = new float[n];
+		int i, no2;
+		float maxAmp =Float.MIN_VALUE;
+		int indMax=0;
+		
+		ans=realft(data1,1);				
+		no2=n>>1;
+		
+		for(i=2;i<n;i+=2)
+		{
+			invPrep[i]=(ans[i]*ans[i]+ans[i+1]*ans[i+1])/no2;
+			if(maxAmp<invPrep[i]&& i<no2)
+			{
+				maxAmp=invPrep[i];
+				indMax=i;
+			}
+			//ans[i]=tmp;
+			//ans[i+1]=(ans[i+1]*tmp-tmp*ans[i+1])/no2;
+			//ans[i+1]=0;
+		}
+		invPrep[0]=ans[0]*ans[0]/no2;
+		invPrep[1]=ans[1]*ans[1]/no2;
+		//if(invPrep[0]+invPrep[1]>maxAmp)
+		//	indMax=0;
+		
+		invPrep=realft(invPrep,-1);
+		
+		if(nCalcFreqPhase)
+		{
+			fFreqPhase= new float [2];
+			fFreqPhase[0]= ((float)(indMax)*0.5f/(float)n);
+			fFreqPhase[1] = (float)Math.atan2(ans[indMax+1], ans[indMax]);
+		}
+		
+		return invPrep;
 	
 	}
 

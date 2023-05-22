@@ -64,11 +64,11 @@ public class KymoSplitter {
 			pavedip.insert(flips, imwidth, 2*imheight);
 			//new ImagePlus("zzz", pavedip).show();
 			//pavedip.
-			paddedip=ImCrossCorrelation.padzeros(pavedip);
+			paddedip=FFTtools.padzeros(pavedip);
 		}
 		else
 		{
-			paddedip=ImCrossCorrelation.padzeros(ip);
+			paddedip=FFTtools.padzeros(ip);
 		}
 		//paddedip=ImCrossCorrelation.padzeros(ip);
 		nFTsize=paddedip.getWidth();
@@ -112,7 +112,7 @@ public class KymoSplitter {
 		    }
 		    //new ImagePlus("zzz", spectrumf.getProcessor(1)).show();
 		    
-		    invF = ImCrossCorrelation.doComplexInverseTransform(spectrumf,0, 0);
+		    invF = FFTtools.doComplexInverseTransform(spectrumf,0, 0);
 		    
 		    //convert back
 		    tempft = invF.getProcessor(1);

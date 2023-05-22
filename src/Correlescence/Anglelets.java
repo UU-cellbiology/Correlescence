@@ -84,7 +84,7 @@ public class Anglelets {
 		//initialize final stack
 		finstack = new ImageStack(imWidth,imHeight);
 		
-		paddedip=ImCrossCorrelation.padzeros(ip);
+		paddedip=FFTtools.padzeros(ip);
 		nFTsize=paddedip.getWidth();
 		calcCornerCoordinates();
 		//do fft
@@ -120,7 +120,7 @@ public class Anglelets {
 		//initialize final stack
 		finstack = new ImageStack(imWidth,imHeight);
 		
-		paddedip=ImCrossCorrelation.padzeros(ip);
+		paddedip=FFTtools.padzeros(ip);
 		nFTsize=paddedip.getWidth();
 		calcCornerCoordinates();
 		//do fft
@@ -227,7 +227,7 @@ public class Anglelets {
 		//*/
 		//new ImagePlus("fdf",roiFilt.getMask()).show();
 		//new ImagePlus("after",filtSpectrum).show();
-		invF=  ImCrossCorrelation.doComplexInverseTransform(filtSpectrum,0, 0);
+		invF=  FFTtools.doComplexInverseTransform(filtSpectrum,0, 0);
 		
 		if(bShow)
 		{
@@ -319,7 +319,7 @@ public class Anglelets {
 		
 		//new ImagePlus("fdf",roiFilt.getMask()).show();
 		//new ImagePlus("after",filtSpectrum).show();
-		invF=  ImCrossCorrelation.doComplexInverseTransform(filtSpectrum,0, 0);
+		invF=  FFTtools.doComplexInverseTransform(filtSpectrum,0, 0);
 	    
 	    //convert back
 		finalip = invF.getProcessor(1);
