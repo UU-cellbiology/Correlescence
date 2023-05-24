@@ -264,21 +264,23 @@ public class Temporal_ICS implements PlugIn {
 		}
 		if(bICSfreqphase)
 		{
+			ImagePlus finalFFTfr;
+			ImagePlus finalFFTphase;
 			if(nOutput==0)
 			{
-				finalImpMax = new ImagePlus("Dominant_FFT_frequency_"+sTitle, freqip);
+				finalFFTfr = new ImagePlus("Dominant_FFT_frequency_"+sTitle, freqip);
 			}
 			else
 			{
-				finalImpMax = new ImagePlus("Dominant_FFT_period_"+sTitle, freqip);
+				finalFFTfr = new ImagePlus("Dominant_FFT_period_"+sTitle, freqip);
 			}
-			finalImpMax.setCalibration(outCal);
-			finalImpMax.show();			
-			IJ.run(finalImpMax,"Fire","");
-			finalImpMax = new ImagePlus("Phase_"+sTitle, phaseip);
-			finalImpMax.setCalibration(outCal);
-			finalImpMax.show();
-			IJ.run(finalImpMax,"Spectrum","");
+			finalFFTfr.setCalibration(outCal);
+			finalFFTfr.show();			
+			IJ.run(finalFFTfr,"Fire","");
+			finalFFTphase = new ImagePlus("Phase_"+sTitle, phaseip);
+			finalFFTphase.setCalibration(outCal);
+			finalFFTphase.show();
+			IJ.run(finalFFTphase,"Spectrum","");
 		}
 		
 	}
@@ -545,7 +547,7 @@ public class Temporal_ICS implements PlugIn {
 				}
 				else
 				{
-					finVal = line[maxInd];
+					finVal = maxInd;
 				}
 				//convert to time units (1 if frames)
 				finVal *= dTimeUnits;
