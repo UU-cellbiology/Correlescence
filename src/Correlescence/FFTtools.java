@@ -297,25 +297,30 @@ public class FFTtools {
  		
  		ImageProcessor vip = ip.createProcessor(imW,imH);
  		vip = vip.convertToFloat();
- 		for(j=0;j<imH; j+=(imH-1))
- 			for (i=0;i<imW;i++)
- 			{
- 				vip.putPixelValue(i, j, ip.getf(i, imH-1-j)-ip.getf(i, j));
- 			}
- 		for(i=0;i<imW; i+=(imW-1))
- 			for (j=0;j<imH;j++)
- 			{
- 				vip.putPixelValue(i, j, vip.getf(i, j)+ip.getf(imW-1-i, j)-ip.getf(i, j));
- 			}
+ 		float diff;
+ 		for (i=0;i<imW;i++)
+ 		{
+ 			diff = ip.getf(i, 0) - ip.getf(i, imH-1);
+ 			vip.putPixelValue(i, 0, diff);
+ 			vip.putPixelValue(i, imH-1, (-1)*diff);
+ 		}
+		for (j=0;j<imH;j++)
+		{
+			diff = ip.getf(0, j) - ip.getf(imW-1, j);
+			
+			vip.putPixelValue(0, j, vip.getf(0, j)+diff);
+			vip.putPixelValue(imW-1, j, vip.getf(imW-1, j)-diff);
+		}
  		
- 	
+ 		//new ImagePlus("boundaries",vip).show();
  
 		ImageStack ct_dft = GeneralFFT.fft2Dtransform(vip, false);
  	
- 
+		//new ImagePlus("FFT_VIP",ct_dft).show();
  		ImageStack ct_inv = null;
  		
  		FloatProcessor k_dft =k_dft (imW,  imH);
+ 		//new ImagePlus("cosines",k_dft).show();
  		ImageProcessor complexFFT;
  		for (k=1;k<3;k++)
  		{
@@ -323,7 +328,7 @@ public class FFTtools {
  			for(i=0;i<imW; i++)
  				for (j=0;j<imH;j++)
  				{				
- 					complexFFT.putPixelValue(i, j, complexFFT.getPixelValue(i, j)/k_dft.getf(i,j));
+ 					complexFFT.putPixelValue(i, j, complexFFT.getPixelValue(i, j)*k_dft.getf(i,j));
  				}
  			complexFFT.putPixelValue(imW/2, imW/2, 0.);
  		}
@@ -366,7 +371,8 @@ public class FFTtools {
  		for (int i=0;i<imW;i++)
  			for (int j=0;j<imH;j++)
  			{
- 				result.setf(i, j, (float)(2.0*(m[i]+n[j]-2.0)));
+ 				//result.setf(i, j, (float)(2.0*(m[i]+n[j]-2.0)));
+ 				result.setf(i, j, (float)(0.5/(2.0 - m[i]-n[j])));
  			}
  		result.setf(0, 0, 1.f);
  		//FFTswapQuadrants(result);
@@ -386,20 +392,21 @@ public class FFTtools {
  		double val,V;
  		int N;
  		
- 		val=1./(double)n;
+ 		val=2.*Math.PI/(double)n;
  		N=Math.floorDiv(n-1, 2)+1;
- 		V=(-1)*Math.floorDiv(n, 2);
+ 		V=Math.floorDiv(n, 2);
  		for (i=0;i<N;i++)
  		{
- 			cos_n[i]=val*(double)i;
+ 			cos_n[i]=(double)i;
  		}
  		for (i=N;i<n;i++)
  		{
- 			cos_n[i]=val*V;
- 			V=V+1;
+ 			cos_n[i]=V;
+ 			V=V-1;
  		}
+ 		
  		for(i=0;i<n;i++)
- 			cos_n[i]=Math.cos(2.*Math.PI*cos_n[i]);
+ 			cos_n[i]=Math.cos(cos_n[i]*val);
  		
  		return cos_n;
  	}

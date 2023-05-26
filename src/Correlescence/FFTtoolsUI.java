@@ -8,7 +8,6 @@ import ij.ImageStack;
 import ij.Prefs;
 import ij.gui.GenericDialog;
 import ij.plugin.PlugIn;
-import ij.process.FHT;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 
@@ -66,7 +65,7 @@ public class FFTtoolsUI implements PlugIn
 			startTime = System.nanoTime();
 			if(nChoiceFFT2==0)
 			{ 
-				new ImagePlus("Complex_FFT_of_"+imTitle,GeneralFFT.fft2Dtransform(ip, false)).show();
+				new ImagePlus("Complex_FFT_of_"+imTitle,GeneralFFT.fft2Dtransform(ip, true)).show();
 				/*FHT fht;
 				ImageProcessor paddedip1=FFTtools.padzeros(ip);
 				fht = new FHT(paddedip1);

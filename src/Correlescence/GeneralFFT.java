@@ -33,18 +33,22 @@ import ij.process.ImageProcessor;
 
 public final class GeneralFFT {
 	
-	//pre-computed tables of cos and sin 
+	// pre-computed tables of cos and sin 
 	// for speed performance
-	//Z-chirp cos/sin in Bluestein part
+	// Z-chirp cos/sin in Bluestein part
 	double [] sinXB;
 	double [] cosXB;
 	//cos/sin of power of 2 for Radix2
-	double [] sinXR;
-	double [] cosXR;
+	// this is removed now since using Radix2 from NR
+	//double [] sinXR;
+	//double [] cosXR;
+	
+	
 	//helpful stuff
 	float[] yreal;
 	float[] yimag;
 	
+
 	/* 
 	 * Computes the discrete Fourier transform (DFT) of the given complex vector, storing the result back into the vector.
 	 * The vector can have any length. This is a wrapper function.
@@ -68,18 +72,10 @@ public final class GeneralFFT {
 	public static float[][] transformR(float[] realin) {
 		int n = realin.length;
 		
-		float[] real = new float [n];
-		float[] imag = new float [n];
 		float[][] fin = new float [2][n];
-		System.arraycopy(realin, 0, real, 0, n);
-		if (n == 0)
-			return fin;
-		else if ((n & (n - 1)) == 0)  // Is power of 2
-			transformRadix2(real, imag);
-		else  // More complicated algorithm for arbitrary sizes
-			transformBluestein(real, imag);
-		fin[0]=real;
-		fin[1]=imag;
+		System.arraycopy(realin, 0, fin[0], 0, n);
+		transform(fin[0],fin[1]);
+	
 		return fin;
 		
 	}
@@ -96,12 +92,7 @@ public final class GeneralFFT {
 		float[] imag = new float [n];
 		float[][] fin = new float [2][n];
 		System.arraycopy(realin, 0, real, 0, n);
-		if (n == 0)
-			return fin;
-		else if ((n & (n - 1)) == 0)  // Is power of 2
-			prC_transformRadix2(real, imag);
-		else  // More complicated algorithm for arbitrary sizes
-			prC_transformBluestein(real, imag);
+		prC_transform(real,imag);
 		fin[0]=real;
 		fin[1]=imag;
 		return fin;
@@ -128,6 +119,12 @@ public final class GeneralFFT {
 	 * The vector can have any length. This is a wrapper function. This transform does not perform scaling, so the inverse is not a true inverse.
 	 */
 	public static void inverseTransform(float[] real, float[] imag) {
+		int n = real.length;
+		for(int i=0;i<n;i++)
+		{
+			real[i]/=n;
+			imag[i]/=n;
+		}
 		transform(imag, real);
 	}
 	
@@ -135,11 +132,18 @@ public final class GeneralFFT {
 	 * Computes the inverse discrete Fourier transform (IDFT) of the given complex vector, storing the result back into the vector.
 	 * The vector can have any length. This is a wrapper function. This transform does not perform scaling, so the inverse is not a true inverse.
 	 */
-	public void prC_inverseTransform(float[] real, float[] imag) {
+	public void prC_inverseTransform(float[] real, float[] imag) 
+	{
+		int n = real.length;
+		for(int i=0;i<n;i++)
+		{
+			real[i]/=n;
+			imag[i]/=n;
+		}
+		
 		prC_transform(imag, real);
 	}
-	
-	
+
 	
 	/* 
 	 * Computes the discrete Fourier transform (DFT) of the given complex vector, storing the result back into the vector.
@@ -286,7 +290,7 @@ public final class GeneralFFT {
 		double valI;
 		for (int i = 0; i < n; i++) {
 			//int j = (int)((long)i * i % (n * 2));  // This is more accurate than j = i * i
-			valI= i*i*Math.PI / n;
+			valI= ((int)((long)i * i % (n * 2)))*Math.PI / n;
 			cosTable[i] = Math.cos(valI);
 			sinTable[i] = Math.sin(valI);
 		}
@@ -341,16 +345,7 @@ public final class GeneralFFT {
 			areal[i] = (float)(real[i] * cosXB[i] + imag[i] * sinXB[i]);
 			aimag[i] = (float)(-real[i] * sinXB[i] + imag[i] * cosXB[i]);
 		}
-		/*
-		float[] breal = new float[m];
-		float[] bimag = new float[m];
-		breal[0] = (float)cosXB[0];
-		bimag[0] = (float)sinXB[0];
-		for (int i = 1; i < n; i++) {
-			breal[i] = breal[m - i] = (float)cosXB[i];
-			bimag[i] = bimag[m - i] = (float)sinXB[i];
-		}
-		*/
+
 		// Convolution
 		float[] creal = new float[m];
 		float[] cimag = new float[m];
@@ -398,7 +393,8 @@ public final class GeneralFFT {
 			ximag[i] = ximag[i] * yreal[i] + xreal[i] * yimag[i];
 			xreal[i] = (float)temp;
 		}
-		inverseTransform(xreal, ximag);
+		//inverse non-scaled transform
+		transform(ximag,xreal);
 		
 		for (int i = 0; i < n; i++) {  // Scaling (because this FFT implementation omits it)
 			outreal[i] = xreal[i] / n;
@@ -431,7 +427,9 @@ public final class GeneralFFT {
 			ximag[i] = ximag[i] * yreal[i] + xreal[i] * yimag[i];
 			xreal[i] = (float)temp;
 		}
-		prC_inverseTransform(xreal, ximag);
+		//inverse non scaled transform
+		prC_transform(ximag, xreal);
+		//prC_inverseTransform(xreal, ximag);
 		
 		for (int i = 0; i < n; i++) {  // Scaling (because this FFT implementation omits it)
 			outreal[i] = xreal[i] / n;
@@ -464,7 +462,8 @@ public final class GeneralFFT {
 			//fft1d=GeneralFFT.transformR(FFTtools.getImageRow(dupip, j, imW));
 			//fft1d=Gfft.prC_transformR(FFTtools.getImageRow(dupip, j, imW));
 			FFTtools.getImageRowData(dupip, j, imW, datain);
-			fft1d=Gfft.prC_transformR(datain);
+			//fft1d = GeneralFFT.transformR(datain);
+			fft1d = Gfft.prC_transformR(datain);
 			for(i=0;i<imW;i++)
 				for(k=0;k<2;k++)
 				{
@@ -504,7 +503,6 @@ public final class GeneralFFT {
 		int i,j,k;
 		
 		GeneralFFT Gfft = new GeneralFFT();
-		FloatProcessor [] twoip;
 		
 		FloatProcessor dupip = (FloatProcessor) ip.duplicate().convertToFloat();
 		FloatProcessor realip = new FloatProcessor(imW,imH);
@@ -530,6 +528,7 @@ public final class GeneralFFT {
 		
 		return fft2drows;
 	}
+	
 	/** Function returns complex Fourier transform of an arbitrary size image per each row.
 	 *  Returned ImageStack has real values at first image and imaginary at the second
 	 * **/
@@ -659,10 +658,12 @@ public final class GeneralFFT {
 		FloatProcessor realip = new FloatProcessor(imW, imH);
 		float [][][] fftc = new float[2][imW][imH];
 		float [][] fft1d;
+		GeneralFFT Gfft = new GeneralFFT();
 		ImageProcessor real = null;
 		ImageProcessor imag = null;
 		real=istack.getProcessor(1);
 		imag=istack.getProcessor(2);
+		Gfft.preComputeCosSin(imW);
 		//FFT in rows
 		for(j=0;j<imH;j++)
 		{
@@ -670,7 +671,8 @@ public final class GeneralFFT {
 			real.getRow(0, j, fft1d[0], imW);
 			imag.getRow(0, j, fft1d[1], imW);
 			
-			GeneralFFT.inverseTransform(fft1d[0],fft1d[1]);
+			//GeneralFFT.inverseTransform(fft1d[0],fft1d[1]);
+			Gfft.prC_inverseTransform(fft1d[0],fft1d[1]);
 			for(i=0;i<imW;i++)
 				for(k=0;k<2;k++)
 				{
@@ -678,18 +680,14 @@ public final class GeneralFFT {
 				}
 		}
 		//FFT in columns
+		Gfft.preComputeCosSin(imH);
 		for(i=0;i<imW;i++)
 		{
-			GeneralFFT.inverseTransform(fftc[0][i],fftc[1][i]);
+			Gfft.prC_inverseTransform(fftc[0][i],fftc[1][i]);			
 		}
-		for(i=0;i<imW;i++)
-			for(j=0;j<imH;j++)
-				{
-					fftc[0][i][j]/=(float)(imW*imH);
-				}
+
 		realip.setFloatArray(fftc[0]);
-		return realip;
-		
+		return realip;		
 		
 	}
 	
@@ -830,12 +828,12 @@ public final class GeneralFFT {
 		for(i=0;i<imW;i++)
 			for(j=0;j<imH;j++)
 			{
-				realv=realip.getf(i, j);
-				imv=imagip.getf(i, j);
-				freqpow= Math.pow(realv, 2)+Math.pow(imv, 2);
-				freqpow= Math.sqrt(freqpow);
-				freqpow= Math.log(freqpow);
-				phaseval=Math.atan2(imv, realv);
+				realv = realip.getf(i, j);
+				imv = imagip.getf(i, j);
+				freqpow = Math.pow(realv, 2)+Math.pow(imv, 2);
+				freqpow = Math.sqrt(freqpow);
+				freqpow = Math.log(freqpow);
+				phaseval = Math.atan2(imv, realv);
 				powerip.setf(i, j, (float)freqpow);
 				phaseip.setf(i, j, (float)phaseval);
 				
@@ -857,20 +855,20 @@ public final class GeneralFFT {
 		double valI;
 		for (i = 0; i < N; i++) 
 		{
-			valI= i*i*Math.PI / N;
+			valI= ((int)((long)i * i % (N * 2)))*Math.PI / N;
 			cosXB[i] = Math.cos(valI);
 			sinXB[i] = Math.sin(valI);
 		}
 		int m = Integer.highestOneBit(N) * 4;
 		// Trigonometric tables
-		cosXR = new double[m / 2];
+	/*	cosXR = new double[m / 2];
 		sinXR = new double[m / 2];
 		for (i = 0; i < m / 2; i++) 
 		{
 			valI = 2.0 * i* Math.PI/ m;
 			cosXR[i] = Math.cos(valI);
 			sinXR[i] = Math.sin(valI);
-		}
+		}*/
 		
 		// Temporary vectors and preprocessing
 
@@ -884,4 +882,30 @@ public final class GeneralFFT {
 		}
 		transform(yreal,yimag);
  	}
+ 	
+ 	/*
+	public static void main( String... args) throws Exception
+	{
+		
+		
+		float [] testArr = new float[]{20f,21f,22f,23f,24f,23f,22f,21f,45f};
+		int size =testArr.length;
+		float[][] FFTtr = GeneralFFT.transformR(testArr);
+		
+		
+		//for(int i=0;i<FFTtr[0].length;i++)
+		//{
+		//	FFTtr[0][i]/=size;
+		//	FFTtr[1][i]/=size;
+		//}
+		
+		
+		GeneralFFT.inverseTransform(FFTtr[0], FFTtr[1]);
+		for(int i=0;i<FFTtr[0].length;i++)
+		{
+			System.out.println(FFTtr[0][i]);
+		}
+		System.out.print("done");
+	}
+*/
 }
