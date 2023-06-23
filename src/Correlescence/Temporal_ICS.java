@@ -31,7 +31,7 @@ public class Temporal_ICS implements PlugIn {
 	/** correlation normalization method 
 	 * 0 = overlap area
 	 * 1 = full area **/
-	int nNormMethod=0;
+	int nNormMethod=1;
 	
 	/** object calculating correlation **/
 	imCC1D x1D = new imCC1D();
@@ -526,7 +526,7 @@ public class Temporal_ICS implements PlugIn {
 								
 				arrlength = maxpos.length;
 				
-				if(arrlength ==0)
+				if(arrlength == 0)
 				{
 					maxInd = 0;					
 				}
@@ -557,6 +557,23 @@ public class Temporal_ICS implements PlugIn {
 				{
 					finVal = 1./finVal;
 				}
+				
+				//special case
+				if(maxInd == 0)
+				{
+					//frequency
+					if(nOutput == 0)
+					{
+						finVal = 0.0;
+					}
+					//period
+					else
+					{
+						finVal = Double.POSITIVE_INFINITY;
+					}
+				}
+				
+			
 				//store result
 				ipFin.putPixelValue(k, j, finVal);
 				
