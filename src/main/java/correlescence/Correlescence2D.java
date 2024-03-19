@@ -1,4 +1,4 @@
-package Correlescence;
+package correlescence;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -45,7 +45,8 @@ public void run(String arg) {
     int maxN;
 	int nCorrW;
     int i,j;
-    int [] xymax;
+    //int [] xymax;
+    double [] maxCC_XY;
     String sTitle;
     String sImTitle;
     String sInTitle;
@@ -86,14 +87,12 @@ public void run(String arg) {
 	
 	originalWidth = imp.getWidth();
     originalHeight = imp.getHeight();
-	//halfW=(int)Math.round(originalWidth*0.5);
-	//halfH=(int)Math.round(originalHeight*0.5);
 	maxN = Math.max(originalWidth, originalHeight);
 	nCorrW = 2;
     while(nCorrW<maxN) nCorrW *= 2;
     
-    //crosscorrstack= new ImageStack(nCorrW,nCorrW);
-    crosscorrstack= new ImageStack(originalWidth,originalHeight);
+
+    crosscorrstack = new ImageStack(originalWidth,originalHeight);
     ptable = ResultsTable.getResultsTable();
     
     xydrifttable = new int [nStackSize][2];
@@ -102,12 +101,12 @@ public void run(String arg) {
     IJ.showStatus("Calculating correlation...");
     if(sChoice.equals("consecutive images"))
     {
-    	sImTitle =sImTitle +sChoice;
+    	sImTitle = sImTitle +sChoice;
     	sImTitle = sImTitle+"_delay_"+Integer.toString(nImNumber)+"_"+sInTitle;
     	if (bDrift)
     	{
-    		xydrifttable[0][0]=0;
-    		xydrifttable[0][1]=0;
+    		xydrifttable[0][0] = 0;
+    		xydrifttable[0][1] = 0;
     	}
     	ptable.reset();
 	    i=1; j=i+nImNumber;
@@ -116,16 +115,14 @@ public void run(String arg) {
 	    	IJ.error("Frame delay larger than image stack size");
 	    	return;
 	    }
-	    
-	    
-	  
+ 
 	    while(j<=nStackSize)
 	    {
 	    	imp.setSliceWithoutUpdate(i);
 
-	    	ip1 = getFloatversion(imp);
+	    	ip1 = getFloatVersion(imp);
 	    	imp.setSliceWithoutUpdate(j);
-	    	ip2 = getFloatversion(imp);
+	    	ip2 = getFloatVersion(imp);
 
 			//subtract average intensity value
 			ip1.subtract(ImageStatistics.getStatistics(ip1,Measurements.MEAN,null).mean);
@@ -138,20 +135,23 @@ public void run(String arg) {
 				{ip = x2D.calcFFTCorrelationImage(ip1, ip2);}
 			
 			sTitle = String.format("corr_%d_x_%d", i,j);
-			//xymax = getmaxpositions(ip);
-			xymax = getmaxpositionscenterlimit(ip);
+
+			maxCC_XY = getMaxPositionCenterLimit(ip);
+
 			ptable.incrementCounter();
 			ptable.addLabel(sTitle);
-			ptable.addValue("Xmax_(px)",xymax[0]);	
-			ptable.addValue("Ymax_(px)",xymax[1]);
+			ptable.addValue("Xmax_(px)",maxCC_XY[1]);	
+			ptable.addValue("Ymax_(px)",maxCC_XY[2]);
+
 			if (bDrift)
 			{
-				xydrifttable[i][0]=(int) (xymax[0] + xydrifttable[i-1][0]);
-				xydrifttable[i][1]=(int) (xymax[1] + xydrifttable[i-1][1]);
+				xydrifttable[i][0]=(int) (maxCC_XY[1] + xydrifttable[i-1][0]);
+				xydrifttable[i][1]=(int) (maxCC_XY[2] + xydrifttable[i-1][1]);
 				//reserve
 				ptable.addValue("Xdrift_(px)",0);	
 				ptable.addValue("Ydrift_(px)",0);
 			}
+			ptable.addValue("CC_max",maxCC_XY[0]);	
 			
 			crosscorrstack.addSlice(null, ip);
 			IJ.showProgress(j, nStackSize);
@@ -167,14 +167,14 @@ public void run(String arg) {
     	
     	i=imp.getCurrentSlice();
     	sImTitle =sImTitle +"vs_frame"+Integer.toString(i)+"_"+sInTitle;
-    	ip1=getFloatversion(imp);
+    	ip1=getFloatVersion(imp);
     	//subtract average intensity value
 		ip1.subtract(ImageStatistics.getStatistics(ip1,Measurements.MEAN,null).mean);
     	j=1;
     	while(j<=nStackSize)
     	{
 			imp.setSliceWithoutUpdate(j);
-			ip2 = getFloatversion(imp);
+			ip2 = getFloatVersion(imp);
 			ip2.subtract(ImageStatistics.getStatistics(ip2,Measurements.MEAN,null).mean);
 			if(nCalcMethod==0)
 				{ip = x2D.calcDirectCorrelationImage(ip1,ip2);}
@@ -182,21 +182,20 @@ public void run(String arg) {
 				{ip = x2D.calcFFTCorrelationImage(ip1, ip2);}
 		
 			sTitle = String.format("corr_%d_x_%d", i,j);
-			xymax = getmaxpositionscenterlimit(ip);
-			//xymax = getmaxpositions(ip);
+			maxCC_XY = getMaxPositionCenterLimit(ip);
 			ptable.incrementCounter();
 			ptable.addLabel(sTitle);
-			ptable.addValue("Xmax_(px)",xymax[0]);	
-			ptable.addValue("Ymax_(px)",xymax[1]);
+			ptable.addValue("Xmax_(px)",maxCC_XY[1]);	
+			ptable.addValue("Ymax_(px)",maxCC_XY[2]);
 			if (bDrift)
 			{
-				xydrifttable[j-1][0]=(int) (xymax[0]);
-				xydrifttable[j-1][1]=(int) (xymax[1]);
+				xydrifttable[j-1][0]=(int) (maxCC_XY[1]);
+				xydrifttable[j-1][1]=(int) (maxCC_XY[2]);
 				//reserve
 				ptable.addValue("Xdrift_(px)",0);	
 				ptable.addValue("Ydrift_(px)",0);
 			}
-
+			ptable.addValue("CC_max",maxCC_XY[0]);	
 			
 			crosscorrstack.addSlice(null, ip);
 			IJ.showProgress(j, nStackSize);
@@ -205,6 +204,7 @@ public void run(String arg) {
     	}
     	IJ.showProgress(j, nStackSize);
     }
+    
     //autocorrelation
     if(sChoice.equals("autocorrelation"))
     {	
@@ -218,7 +218,7 @@ public void run(String arg) {
 		while(j<=nStackSize)
 		{
 			imp.setSliceWithoutUpdate(j);
-			ip2 = getFloatversion(imp);
+			ip2 = getFloatVersion(imp);
 			ip2.subtract(ImageStatistics.getStatistics(ip2,Measurements.MEAN,null).mean);
 			if(nCalcMethod==0)
 				{ip = x2D.calcDirectCorrelationImage(ip2,ip2);}
@@ -226,13 +226,13 @@ public void run(String arg) {
 				{ip = x2D.calcFFTCorrelationImage(ip2, ip2);}
 		
 			sTitle = String.format("corr_%d_x_%d", j,j);
-			xymax = getmaxpositionscenterlimit(ip);
-			//xymax = getmaxpositions(ip);
+			maxCC_XY = getMaxPositionCenterLimit(ip);
 
 			ptable.incrementCounter();
 			ptable.addLabel(sTitle);
-			ptable.addValue("Xmax_(px)",xymax[0]);	
-			ptable.addValue("Ymax_(px)",xymax[1]);
+			ptable.addValue("Xmax_(px)",maxCC_XY[1]);	
+			ptable.addValue("Ymax_(px)",maxCC_XY[2]);
+			ptable.addValue("CC_max",maxCC_XY[0]);
 			
 			crosscorrstack.addSlice(null, ip);
 			IJ.showProgress(j, nStackSize);
@@ -242,10 +242,10 @@ public void run(String arg) {
     }
 
     IJ.showStatus("Calculating correlation...done.");
-    impCC= new ImagePlus(sImTitle, crosscorrstack);
+    impCC = new ImagePlus(sImTitle, crosscorrstack);
     Calibration cal = impCC.getCalibration();
-    cal.xOrigin=Math.round(originalWidth*0.5);
-    cal.yOrigin=Math.round(originalHeight*0.5);
+    cal.xOrigin = Math.round(originalWidth*0.5);
+    cal.yOrigin = Math.round(originalHeight*0.5);
     impCC.setCalibration(cal);
     impCC.show();
     IJ.resetMinAndMax();
@@ -350,14 +350,14 @@ public boolean x2Dialog(boolean bAutoOn)
 }
 
 /** Gets x and y coordinates of maximum intensity pixel on image. */	
-int [] getmaxpositions(ImageProcessor ipp)
+int [] getMaxPosition(ImageProcessor ipp)
 {
 	int [] results = new int [2];
 	results[0]=0;
 	results[1]=0;
 
 	double s;
-	double smax=Double.MIN_VALUE;
+	double smax = (-1)*Double.MAX_VALUE;
 	
 	for (int i=0;i<ipp.getWidth();i++)
 	{
@@ -376,30 +376,34 @@ int [] getmaxpositions(ImageProcessor ipp)
 	return results;		
 }
 
-/** Gets x and y coordinates of maximum intensity pixel on image (with respect to the center
- * and return them, taking into account the min and max  */	
-int [] getmaxpositionscenterlimit(ImageProcessor ipp_in)
+/** Returns max value [0] and  x [1] and y [2] coordinates of maximum 
+ * intensity pixel on image (with respect to the center),
+ * limited by nDriftlimitX nDriftlimitY  */	
+double [] getMaxPositionCenterLimit(ImageProcessor ipp_in)
 {
-	int [] results = new int [2];
-	results[0]=0;
-	results[1]=0;
+	double [] results = new double[3];
+
 	int nWidth = ipp_in.getWidth();
 	int nHeight = ipp_in.getHeight();
-	int halfW=(int)Math.round(nWidth*0.5);
-	int halfH=(int)Math.round(nHeight*0.5);
+	int halfW = (int)Math.round(nWidth*0.5);
+	int halfH = (int)Math.round(nHeight*0.5);
 	
 	ImageProcessor ipp;
 	
 	double s;
-	double smax=Double.MIN_VALUE;
+	
+	results[0] = (-1)*Double.MAX_VALUE;
+	results[1] = 0.0;
+	results[2] = 0.0;
+	//double smax = (-1)*Double.MAX_VALUE;
 	
 	if(bDriftlimit)
 	{
-		ipp=ipp_in.duplicate();
+		ipp = ipp_in.duplicate();
 		ipp.setRoi(halfW-nDriftlimitX, halfH-nDriftlimitY, 2*nDriftlimitX, 2*nDriftlimitY);
 		ipp=ipp.crop();
-		halfW=nDriftlimitX;
-		halfH=nDriftlimitY;
+		halfW = nDriftlimitX;
+		halfH = nDriftlimitY;
 	}
 	else
 	{
@@ -410,24 +414,25 @@ int [] getmaxpositionscenterlimit(ImageProcessor ipp_in)
 	{
 		for (int j=0;j<ipp.getHeight();j++)
 		{
-			s=ipp.get(i, j);	
-			if (s>smax)
+			s = ipp.getf(i, j);	
+			if (s>results[0])
 			{
-				smax=s;
-				results[0]=i;
-				results[1]=j;
+				results[0] = s;
+				results[1] = i;
+				results[2] = j;
 			}
 		}
 	}
-	results[0]=results[0]-halfW;
-	results[1]=results[1]-halfH;
+	results[1] = results[1]-halfW;
+	results[2] = results[2]-halfH;
+	
 	return results;		
 }
 
 
 
 /** Gets float copy of current imageprocessor */	
-ImageProcessor getFloatversion(ImagePlus impx)
+ImageProcessor getFloatVersion(ImagePlus impx)
 
 {
 	if(imp.getType()!=ImagePlus.GRAY32)

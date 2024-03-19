@@ -1,2 +1,4 @@
 ﻿bin
 /bin/
+/target/
+/.settings/

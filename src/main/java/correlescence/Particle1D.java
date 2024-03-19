@@ -1,4 +1,4 @@
-package Correlescence;
+package correlescence;
 
 public class Particle1D {
 	/**particle coordinate**/

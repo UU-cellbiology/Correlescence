@@ -1,4 +1,4 @@
-package Correlescence;
+package correlescence;
 
 import java.util.ArrayList;
 import java.util.Random;

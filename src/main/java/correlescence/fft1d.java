@@ -1,4 +1,4 @@
-package Correlescence;
+package correlescence;
 
 /** class performing 1D DFT (Discrete Fourier Transform) using "Numerical recipes" code
  * 	+ cross correlation addition

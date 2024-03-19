@@ -1,4 +1,4 @@
-package Correlescence;
+package correlescence;
 /* 
  * Free FFT and convolution (Java)
  * 
