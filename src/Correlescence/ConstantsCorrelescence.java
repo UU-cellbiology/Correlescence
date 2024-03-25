@@ -1,5 +1,5 @@
 package Correlescence;
 
 public interface ConstantsCorrelescence {
-	public static final String sVersion="0.0.6";
+	public static final String sVersion="0.0.7";
 }

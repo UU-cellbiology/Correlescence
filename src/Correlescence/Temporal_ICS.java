@@ -111,7 +111,6 @@ public class Temporal_ICS implements PlugIn {
 		ImagePlus finalImpMax=null;
 		String sTitle;
 		
-		// TODO Auto-generated method stub
 		imp = IJ.getImage();		
 
 		if (imp==null)
@@ -417,7 +416,7 @@ public class Temporal_ICS implements PlugIn {
 	 * so time becomes x and height becomes y. 
 	 * It does not verify if nWidthPos is inside the image
 	 * **/
-	public ImageProcessor getResliceRotatedSlice(ImagePlus imp_in, int nWidthPos)
+	static public ImageProcessor getResliceRotatedSlice(ImagePlus imp_in, int nWidthPos)
 	{
 		ImageStack origStack;
 		ImageProcessor ip,rotatedIP=null;
@@ -448,7 +447,7 @@ public class Temporal_ICS implements PlugIn {
 	
 	/** Function reslices (rotates) stack, so time becomes x and height becomes y) 
 	 * **/
-	public ImageStack resliceRotateStack(ImagePlus imp_in)
+	static public ImageStack resliceRotateStack(ImagePlus imp_in)
 	{
 		
 		ImageStack rotatedIm;
@@ -714,7 +713,7 @@ public class Temporal_ICS implements PlugIn {
 	 * @param nRow row number
 	 * @param nWidth image width
 	 * **/
-	public double [] getImageRowD(ImageProcessor ip, int nRow, int nWidth)
+	static public double [] getImageRowD(ImageProcessor ip, int nRow, int nWidth)
 	{
 		double [] data = new double [nWidth];
 

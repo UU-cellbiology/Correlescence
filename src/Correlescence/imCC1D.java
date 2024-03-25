@@ -130,7 +130,7 @@ public class imCC1D {
 
 	/** function calculates non-normalized cross-correlation between float arrays row1 and row2,
 	 * requires their size is equal and length is power of 2 **/
-	public float[] calcCCRowsFFT(float [] row1, float [] row2)
+	static public float[] calcCCRowsFFT(float [] row1, float [] row2)
 	{
 
 		float [] fCCproper;
@@ -193,7 +193,7 @@ public class imCC1D {
 	/** function pads float array with zeros to the closest power of 2
 	 * ? add windowing ?
 	 * **/
-	public float [] prepareForFFT(float [] datain)
+	static public float [] prepareForFFT(float [] datain)
 	{
 		
 		int n = datain.length;
@@ -248,7 +248,7 @@ public class imCC1D {
 	/** function trims float array coming from FFT (power of two)
 	 *  to the image width
 	 * **/
-	public float [] trimFFTCC(float [] xcorr, int imWidth)
+	static public float [] trimFFTCC(float [] xcorr, int imWidth)
 	{
 		float [] trimmed = new float [imWidth];
 		int n=xcorr.length;
@@ -263,7 +263,7 @@ public class imCC1D {
 	 * nNormMethod=0 - overlap area
 	 * nNormMethod=1 - full area
 	 * **/
-	public void normalizeCC(float [] row1, float [] row2, float [] xcorr, int nNormMethod)
+	static public void normalizeCC(float [] row1, float [] row2, float [] xcorr, int nNormMethod)
 	{
 		int n=row1.length;
 		int i,dx;
