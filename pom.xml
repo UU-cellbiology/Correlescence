@@ -11,7 +11,7 @@
 
 	<groupId>nl.uu.science.cellbiology</groupId>
 	<artifactId>correlescence</artifactId>
-	<version>0.0.7-SNAPSHOT</version>
+	<version>0.0.7</version>
 
 	<name>Correlescence</name>
 	<description>Spatial and temporal cross correlations in 1D and 2D for fluorescent microscopy (ImageJ plugin)</description>
