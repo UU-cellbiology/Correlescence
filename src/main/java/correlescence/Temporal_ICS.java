@@ -31,7 +31,7 @@ public class Temporal_ICS implements PlugIn {
 	/** correlation normalization method 
 	 * 0 = overlap area
 	 * 1 = full area **/
-	int nNormMethod=1;
+	int nNormMethod = 0;
 	
 	/** object calculating correlation **/
 	imCC1D x1D = new imCC1D();
@@ -56,9 +56,14 @@ public class Temporal_ICS implements PlugIn {
 	
 	/** stack projection to subtract **/
 	int nProjMethod;
+
+	/** find first/highest maximum or all of them**/
+	int nMaxFindingMethod;
 	
-	/** find first maximum **/
-	boolean bFindFirstMax;
+	public static final int MAX_First=0, MAX_max=1, MAX_all=2; 
+	
+	/** find CC maximum **/
+	boolean bFindCCMax;
 	
 	/** estimate the period/frequency more precisely **/
 	boolean bSubFramePeak;
@@ -71,6 +76,9 @@ public class Temporal_ICS implements PlugIn {
 	
 	/** rotated stack containing TICS **/
 	ImageStack ipICSRotated;
+	
+	/** stack containing all CC maxima **/
+	ImageStack isMaxLocations;
 	
 	/** rescale CC image? **/
 	boolean bRescaleCC;
@@ -93,6 +101,9 @@ public class Temporal_ICS implements PlugIn {
 	String[] projMethods = 
 		{"Average Intensity", "Max Intensity", "Min Intensity", "Sum Slices", "Standard Deviation", "Median"}; 
 	
+	String[] maxMethods = 
+			{"First maximum", "Highest Maximum", "All maxima"}; 
+	
 	String [] sOutput = new String [] {
 			"Frequency","Period"};
 	String [] sOutputUnits = new String [] {
@@ -111,7 +122,6 @@ public class Temporal_ICS implements PlugIn {
 		ImagePlus finalImpMax=null;
 		String sTitle;
 		
-		// TODO Auto-generated method stub
 		imp = IJ.getImage();		
 
 		if (imp==null)
@@ -235,7 +245,7 @@ public class Temporal_ICS implements PlugIn {
 		}
 		
 		//if we want to calculate maximum
-		if(bFindFirstMax)
+		if(bFindCCMax)
 		{
 			String sTitleMax = "TICS_";
 			if(nOutput==0)
@@ -248,6 +258,18 @@ public class Temporal_ICS implements PlugIn {
 				sTitleMax = sTitleMax+"period_";
 				IJ.log("Reported TICS results represent period.");
 			}
+			switch (nMaxFindingMethod)
+			{
+				case MAX_First:
+					IJ.log("Finding the first peak of auto-CC.");
+					break;
+				case MAX_max:
+					IJ.log("Finding the highest peak of auto-CC.");
+					break;
+				case MAX_all:
+					IJ.log("Finding all peaks of auto-CC.");
+					break;					
+			}
 			if(nOutputUnits==0)
 			{
 				IJ.log("Time units: frames.");
@@ -256,11 +278,19 @@ public class Temporal_ICS implements PlugIn {
 			{
 				IJ.log("Frame interval "+Double.toString(dTimeUnits)+ " "+outCal.getTimeUnit());
 			}
-				
-			finalImpMax = new ImagePlus(sTitleMax+sTitle,findMax(ipICSRotated,dMaxTol));
-			finalImpMax.setCalibration(outCal);	
-			finalImpMax.show();
-			IJ.run(finalImpMax,"Fire","");
+			
+			finalImpMax = findMax(ipICSRotated,dMaxTol,nMaxFindingMethod ,sTitleMax+sTitle);	
+			
+			if(nMaxFindingMethod == MAX_all)
+			{				
+				new ImagePlus("CC_max_pos_" + sTitle, resliceRotateStack(new ImagePlus("looped",isMaxLocations))).show();
+			}
+			else
+			{				
+				finalImpMax.setCalibration(outCal);	
+				finalImpMax.show();
+				IJ.run(finalImpMax,"Fire","");
+			}
 		}
 		if(bICSfreqphase)
 		{
@@ -321,11 +351,18 @@ public class Temporal_ICS implements PlugIn {
 		
 		IJ.showStatus("Calculating temporal correlation...");
 		ipICSRotated = new ImageStack(nMaxUserDelayICS+1,origH);
+		if(nMaxFindingMethod == MAX_all)
+		{
+			isMaxLocations = new ImageStack(nMaxUserDelayICS+1,origH);
+		}
 		for (nindW=0;nindW<origW;nindW++)
 		{
-			ipRotatedSlice=getResliceRotatedSlice(imp, nindW);
+			ipRotatedSlice = getResliceRotatedSlice(imp, nindW);
 			ipICSRotated.addSlice(xCorrSpace(ipRotatedSlice, nMaxUserDelayICS,nCalcMethod,nNormMethod));
-
+			if(nMaxFindingMethod == MAX_all)
+			{
+				isMaxLocations.addSlice(new FloatProcessor(nMaxUserDelayICS+1,origH));
+			}
 			IJ.showProgress(nindW, origW-1);
 		}
 		
@@ -359,6 +396,7 @@ public class Temporal_ICS implements PlugIn {
 		xTICSDial.addNumericField("Height resized:", Prefs.get("Correlescence.ICSrescaleH", 200), 0,5," ");
 		xTICSDial.addCheckbox("Estimate period/frequency?", Prefs.get("Correlescence.ICSfindfirstmax", false));
 		xTICSDial.addNumericField("Tolerance of first CC maximum >", Prefs.get("Correlescence.dMaxTolICS", 0.25), 1,7," ");
+		xTICSDial.addChoice("Analyze CC and find:", maxMethods, Prefs.get("Correlescence.ICSmaxmethod", "First maximum"));
 		xTICSDial.addCheckbox("Subframe precision?", Prefs.get("Correlescence.ICSsubframepeak", true));
 		xTICSDial.addCheckbox("Show TICS stack?", Prefs.get("Correlescence.ICSshowTICSstack", false));
 		xTICSDial.addMessage("~~~~~~~  FFT  ~~~~~~~");
@@ -389,11 +427,14 @@ public class Temporal_ICS implements PlugIn {
 		nScaledH=(int)xTICSDial.getNextNumber();
 		Prefs.set("Correlescence.ICSrescaleH", nScaledH);
 		
-		bFindFirstMax = xTICSDial.getNextBoolean(); 
-		Prefs.set("Correlescence.ICSfindfirstmax", bFindFirstMax);
+		bFindCCMax = xTICSDial.getNextBoolean(); 
+		Prefs.set("Correlescence.ICSfindfirstmax", bFindCCMax);
 		
 		dMaxTol=xTICSDial.getNextNumber();
 		Prefs.set("Correlescence.dMaxTolICS", dMaxTol);
+		
+		nMaxFindingMethod = xTICSDial.getNextChoiceIndex();
+		Prefs.set("Correlescence.ICSmaxmethod", maxMethods[nMaxFindingMethod]);
 		
 		bSubFramePeak = xTICSDial.getNextBoolean(); 
 		Prefs.set("Correlescence.ICSsubframepeak", bSubFramePeak);
@@ -448,7 +489,7 @@ public class Temporal_ICS implements PlugIn {
 	
 	/** Function reslices (rotates) stack, so time becomes x and height becomes y) 
 	 * **/
-	public ImageStack resliceRotateStack(ImagePlus imp_in)
+	static public ImageStack resliceRotateStack(ImagePlus imp_in)
 	{
 		
 		ImageStack rotatedIm;
@@ -484,7 +525,8 @@ public class Temporal_ICS implements PlugIn {
 	}
 	/** function to find first maximum with given tolerance 
 	 * in the (rotated) stack of TICS **/
-	public FloatProcessor findMax(ImageStack imp_in, double tolerance)
+	public ImagePlus findMax(final ImageStack imp_in, final double tolerance, final int nMaxMethod, String sTitle)
+	//public FloatProcessor findMax(ImageStack imp_in, double tolerance)
 	{
 		int stackSize, inWidth, inHeight; 
 		int j,k;
@@ -492,6 +534,7 @@ public class Temporal_ICS implements PlugIn {
 		FloatProcessor ipFin;		
 		
 		ImageProcessor ip;
+		ImageProcessor ipMaxLoc = null;
 		
 		double[] line = null;
 		
@@ -507,19 +550,30 @@ public class Temporal_ICS implements PlugIn {
 		inWidth = imp_in.getWidth();
 		inHeight = imp_in.getHeight();
 		stackSize = imp_in.getSize();
-		ipFin = new FloatProcessor(stackSize,inHeight);
-		
+		if(nMaxFindingMethod != MAX_all)
+		{
+			ipFin = new FloatProcessor(stackSize,inHeight);
+		}
+		else
+		{
+			ipFin = null;
+		}
 		IJ.showStatus("Estimating frequency/period..");
 		
 		for (k=0;k<stackSize;k++)
 		{
 			ip = imp_in.getProcessor(k+1);
 			IJ.showProgress(k, stackSize-1);
+			if(nMaxFindingMethod == MAX_all)
+			{
+				ipMaxLoc = isMaxLocations.getProcessor(k+1);
+			}
 			
 			for (j=0;j<inHeight;j++)
 			{
 				line = getImageRowD(ip,j,inWidth);
 				
+				//find maxima
 				maxpos = MaximumFinder.findMaxima(line, tolerance, true);
 				
 				Arrays.sort(maxpos);
@@ -532,57 +586,85 @@ public class Temporal_ICS implements PlugIn {
 				}
 				else
 				{
+					//if(nMaxMethod == MAX_First)
+					//first maximum
 					maxInd = maxpos[0];
-				}
-				
-				
-				if(maxInd > 1 && maxInd <line.length-1 && bSubFramePeak)
-				{
-					//centroid estimate
-					//according to https://iopscience.iop.org/article/10.3847/2515-5172/aae265
-					// A Robust Method to Measure Centroids of Spectral Lines
-					// Richard Teague  and Daniel Foreman-Mackey
-					// DOI 10.3847/2515-5172/aae265
-					finVal= maxInd - 0.5*(line[maxInd+1]-line[maxInd-1])/(line[maxInd+1]+line[maxInd-1]-2*line[maxInd]);					
-				}
-				else
-				{
-					finVal = maxInd;
-				}
-				//convert to time units (1 if frames)
-				finVal *= dTimeUnits;
-				
-				//in case frequency needs to be reported
-				if(nOutput == 0)
-				{
-					finVal = 1./finVal;
-				}
-				
-				//special case
-				if(maxInd == 0)
-				{
-					//frequency
-					if(nOutput == 0)
+					//highest maximum
+					if(nMaxMethod == MAX_max)
 					{
-						finVal = 0.0;
+						double maxV = line[maxInd];
+						for (int i=1;i<arrlength;i++)
+						{
+							if(line[maxpos[i]]>maxV)
+							{
+								maxInd = i;
+								maxV=line[maxInd];
+							}
+						}
 					}
-					//period
+					//all maxima, store it in imageprocessor
+					if(nMaxMethod == MAX_all)
+					{
+						for (int i=0;i<arrlength;i++)
+						{
+							ipMaxLoc.putPixelValue(maxpos[i], j, 1.0);
+						}
+					}
+				}
+				
+				if(nMaxMethod != MAX_all)
+				{
+					if(maxInd > 1 && maxInd <line.length-1 && bSubFramePeak)
+					{
+						//centroid estimate
+						//according to https://iopscience.iop.org/article/10.3847/2515-5172/aae265
+						// A Robust Method to Measure Centroids of Spectral Lines
+						// Richard Teague  and Daniel Foreman-Mackey
+						// DOI 10.3847/2515-5172/aae265
+						finVal= maxInd - 0.5*(line[maxInd+1]-line[maxInd-1])/(line[maxInd+1]+line[maxInd-1]-2*line[maxInd]);					
+					}
 					else
 					{
-						finVal = Double.POSITIVE_INFINITY;
+						finVal = maxInd;
 					}
-				}
-				
-			
-				//store result
-				ipFin.putPixelValue(k, j, finVal);
-				
+					
+					//convert to time units (1 if frames)
+					finVal *= dTimeUnits;
+					
+					//in case frequency needs to be reported
+					if(nOutput == 0)
+					{
+						finVal = 1./finVal;
+					}
+					
+					//special case
+					if(maxInd == 0)
+					{
+						//frequency
+						if(nOutput == 0)
+						{
+							finVal = 0.0;
+						}
+						//period
+						else
+						{
+							finVal = Double.POSITIVE_INFINITY;
+						}
+					}
+					
+					//store result
+					ipFin.putPixelValue(k, j, finVal);
+				}				
 			}
 			
 		}
 		IJ.showProgress(3, 3);
 		IJ.showStatus("Estimating frequency/period..done");
-		return ipFin;
+		if(nMaxMethod == MAX_all)
+			return null;
+		else
+			
+			return new ImagePlus(sTitle,ipFin);
 	}
 	
 	/** given input image it treats x coordinates as time,
